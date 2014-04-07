@@ -18,26 +18,37 @@ class NodeonRNT
 		vector<unsigned long long int> NodeDepths;
 		vector<char> NodesSide;
 
+		//하위 노드의 position을 리턴하는 함수, 받은 노드에서 왼쪽이면 *2, 오른쪽이면 *2 + 1
+		unsigned long long int LowerLevelPosition( unsigned long long int upperlevelposition, char side )
+		{
+			if( side == 'L' )
+				return upperlevelposition * (unsigned long long int)2;
+			if( side == 'R' )
+				return upperlevelposition * (unsigned long long int)2 + (unsigned long long int)1;
+		}
+
+		//상위 노드의 position을 리턴하는 함수
 		unsigned long long int UpperLevelPosition( unsigned long long int position )
 		{
-			return ceil( position / 2 );
+			return floor( position / (unsigned long long int)2 );
 		}
+
 		//상위 노드의 P,Q값을 넣고, 오른쪽 가지인지 왼쪽 가지인지 알려주면 다음 P,Q 값을 리턴하는 함수
 		tuple<unsigned long long int, unsigned long long int>LowerPQ( unsigned long long int P, unsigned long long int Q, char side )
 		{
 			if( side == 'L' )
-				return make_tuple( P, P+Q );
+				return make_tuple( (unsigned long long int)P, (unsigned long long int)(P+Q) );
 			if( side == 'R' )
-				return make_tuple( P+Q, Q );
+				return make_tuple( (unsigned long long int)(P+Q), (unsigned long long int)Q );
 		}
 
-		//위의 노드의 position으로 나눈 값이 2이면 왼쪽, 2가 아니면 오른쪽
-		char LeftorRight( unsigned long long int uppernodedepth, unsigned long long int node )
+		//아래 노드를 2로 나눈 값이 위의 노드와 같으면 left, 다르면 R
+		char LeftorRight( unsigned long long int uppernode, unsigned long long int lowernode )
 		{
-			if( node % uppernodedepth == 0 )
-				return 'L';
-			else
+			if( uppernode * (unsigned long long int)2 != lowernode )
 				return 'R';
+			else
+				return 'L';
 		}
 
 		//임의의 노드의 깊이를 받으면, 상위 노드의 깊이를 계산해주는 함수
@@ -59,15 +70,17 @@ class NodeonRNT
 				return 'L';
 		}
 
-		//바로 위의 노드를 찾아내는 함수. tie ( upper_p, upper_q )와 같은 방식으로 값을 리턴한다.
-		tuple<int, int>UpperStage( int p, int q )
+		//P와 Q를 받으면, 위의 노드에서 어느 쪽으로 파생된 것인지 알려주고, 위의 노드의 P와 Q값을 리턴
+		tuple<unsigned long long int, unsigned long long int, char>UpperStage( unsigned long long int p, unsigned long long int q )
 		{
+			if( p == 1 && q == 1 )
+				return make_tuple( (unsigned long long int)1, (unsigned long long int)1, 'S' );
 			if( p > q )
-				return make_tuple( p - q, q );
+				return make_tuple( p - q, q, 'R' );
 			if( p < q )
-				return make_tuple( p, q - p );
+				return make_tuple( p, q - p, 'L' );
 			if( p == q )
-				return make_tuple( p, q );
+				return make_tuple( p, q, 's' );
 		}
 
 		//position을 받아서, 그 레벨에서 몇번째 자리인지 리턴하는 함수. 그 레벨에 해당하는 지 확인하는 게 좋겠지.
@@ -93,20 +106,48 @@ class NodeonRNT
 		}
 
 	public:
+		void OutputPosition()
+		{
+			cout << this->Position << endl;
+		}
+
+		void OutputPnQ()
+		{
+			cout << this->P << " " << this->Q << endl;
+		}
+
 		void InputPnQ( unsigned long long int p, unsigned long long int q )
 		{
-			P = p;
-			Q = q;
-			Position = 0;
+			this->P = p;
+			this->Q = q;
+			this->Position = (unsigned long long int)1;
+
+			unsigned long long int tempP, tempQ;
+			char side;
+
+			tempP = p;
+			tempQ = q;
+
+			while( tempP > (unsigned long long int)1 || tempQ > (unsigned long long int)1)
+			{
+				tie( tempP, tempQ, side ) = this->UpperStage( tempP, tempQ );
+				this->NodesSide.push_back( side );
+			}
+
+			int temp = this->NodesSide.size();
+
+			for( int i=0; i<temp; i++ )
+			{
+				this->Position = this->LowerLevelPosition( this->Position, this->NodesSide[temp-1-i] );
+			}
 		}
 
 		//Position을 받으면 해당 노드가 몇번째 레벨의 몇번째 자리에 위치해했는지 계산한다.
 		void InputPosition( unsigned long long int position )
 		{
-			Position = position;
-			cout << "Position: " << Position << " ";
-			Level = this->WhatLevel( Position );
-			cout << "Level: " << Level << endl;
+			this->Position = position;
+			this->Level = this->WhatLevel( Position );
+			//cout << "Level: " << Level << endl;
 
 			Positions.push_back( position );
 			for( int i=0; Positions[i] > 1; i++ )
@@ -115,11 +156,18 @@ class NodeonRNT
 			}
 
 			int temp = Positions.size();
-
 			for( int i=0; i<temp-1; i++)
 			{
 				NodesSide.push_back( this->LeftorRight( Positions[i+1], Positions[i] )  );
-				cout << i << "th position: " << Positions[i] << "'s side is " << NodesSide[i] << endl;
+			}
+
+			P = (unsigned long long int)1;
+			Q = (unsigned long long int)1;
+
+			temp = NodesSide.size();
+			for( int i = 0; i<temp; i++ )
+			{
+				tie( P, Q ) = this->LowerPQ( P, Q, NodesSide[temp - 1 - i]);
 			}
 		}
 };
@@ -128,7 +176,7 @@ int main( int argc, char** argv )
 {
 	int CaseNum, WhichCase;
 	unsigned long long int Position, P, Q;
-	NodeonRNT	nodes;
+	NodeonRNT	*nodes;
 
 	ifstream myfile;
 
@@ -137,7 +185,7 @@ int main( int argc, char** argv )
 	if( myfile.is_open() )
 	{
 		myfile >> CaseNum;	
-		//nodes = new NodeonRNT[ CaseNum ];
+		nodes = new NodeonRNT[ CaseNum ];
 
 		for( int i=0; i<CaseNum; i++ )
 		{
@@ -146,28 +194,20 @@ int main( int argc, char** argv )
 			if( WhichCase == 1 )
 			{
 				myfile >> Position;
-				nodes.InputPosition( Position );
+				nodes[i].InputPosition( Position );
+				cout << "Case #" << i+1 << ": ";
+				nodes[i].OutputPnQ();
 			}
 			if( WhichCase == 2 )
 			{
 				myfile >> P >> Q;
-				//nodes[i].InputPnQ( P, Q );
-			}
-
-			if( WhichCase == 1 )
-			{
-				//cout << "This case is find P and Q by " << Position << endl;
-			}
-			if( WhichCase == 2 )
-			{
-				//cout << "This case is find Position by P: " << P << ", Q: " << Q << endl;
-				//int upper_p, upper_q;
-
-				//cout << "Upper Case is " << upper_p << ", " << upper_q << endl;
+				nodes[i].InputPnQ( P, Q );
+				cout << "Case #" << i+1 << ": ";
+				nodes[i].OutputPosition();
 			}
 		}
 	}
 
-	//delete[] nodes;
+	delete[] nodes;
 	myfile.close();
 }
